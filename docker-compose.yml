@@ -1,0 +1,21 @@
+version: "3.1"
+
+networks:
+  postgres:
+    driver: bridge
+
+services:
+  base_postgres:
+    image: postgres:16.1
+    container_name: project_postgres
+    restart: always
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    env_file:
+      - .env
+    ports:
+      - 9000:5432
+    networks:
+      - postgres
