@@ -2,80 +2,88 @@ const { prisma } = require("../prisma/prisma-client");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const login = async (req, res, next) => {
-  const { email, password } = req.body;
+const login = async (req, res) => {
+  try {
+    const { name, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email or password are required" });
-  }
+    if (!name || !password) {
+      return res
+        .status(400)
+        .json({ message: "Пожалуйста, заполните обязятельные поля" });
+    }
 
-  const user = await prisma.user.findFirst({
-    where: {
-      email,
-    },
-  });
+    const user = await prisma.user.findFirst({
+      where: {
+        name,
+      },
+    });
 
-  const isPassswordValid =
-    user && (await bcrypt.compare(password, user.password));
-  const secret = process.env.JWT_SECRET;
+    const isPassswordValid =
+      user && (await bcrypt.compare(password, user.password));
+    const secret = process.env.JWT_SECRET;
 
-  if (user && isPassswordValid && secret) {
-    res.status(200).json({
-      user: {
+    if (user && isPassswordValid && secret) {
+      res.status(200).json({
         id: user.id,
         email: user.email,
         name: user.name,
-        token: jwt.sign({ userId: user.id }, process.env.JWT_SECRET),
-      },
-    });
-  } else {
-    res.status(401).send({ error: "Invalid email or password" });
+        token: jwt.sign({ userId: user.id }, secret, { expiresIn: "30d" }),
+      });
+    } else {
+      res.status(401).send({ message: "Неверно введен логин или пароль" });
+    }
+  } catch {
+    res.status(500).json({ message: "Что-то пошло не так" });
   }
 };
 
 const register = async (req, res, next) => {
-  const { name, email, password } = req.body;
+  try {
+    const { name, email, password } = req.body;
 
-  if (!name || !email || !password) {
-    return res
-      .status(400)
-      .json({ error: "Name, email or password are required" });
-  }
+    if (!name || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Пожалуйста, заполните обязательные поля" });
+    }
 
-  const registerUser = await prisma.user.findFirst({
-    where: {
-      email,
-    },
-  });
+    const registerUser = await prisma.user.findFirst({
+      where: {
+        email,
+      },
+    });
 
-  if (registerUser) {
-    return res.status(400).json({ error: "User already exists" });
-  }
+    if (registerUser) {
+      return res
+        .status(400)
+        .json({ message: "Пользователь, с таким email уже существует" });
+    }
 
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: hashedPassword,
-    },
-  });
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+      },
+    });
 
-  const secret = process.env.JWT_SECRET;
+    const secret = process.env.JWT_SECRET;
 
-  if (user && secret) {
-    res.status(201).json({
-      user: {
+    if (user && secret) {
+      res.status(201).json({
         id: user.id,
         email: user.email,
         name: user.name,
-        token: jwt.sign({ userId: user.id }, secret, { expiresIn: "1d" }),
-      },
-    });
-  } else {
-    res.status(401).send({ error: "Invalid email or password" });
+        token: jwt.sign({ userId: user.id }, secret, { expiresIn: "30d" }),
+      });
+    } else {
+      res.status(401).send({ message: "Не удалось создать пользователя" });
+    }
+  } catch {
+    res.status(500).json({ message: "Что-то пошло не так" });
   }
 };
 
